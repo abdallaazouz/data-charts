@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحليل البيانات وتحويلها إلى صور</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            direction: rtl;
+            text-align: center;
+            background-color: #f0f0f0;
+        }
+        .container {
+            width: 90%;
+            margin: auto;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        input[type="file"] {
+            margin: 20px 0;
+        }
+        .buttons {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .button {
+            margin: 10px;
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .chart-container {
+            margin: 20px 0;
+        }
+        canvas {
+            border: 1px solid #ddd;
+        }
+        #save-btn {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+	  <h1>تصميم م. عبدالله عزوز واتس 01119935714</h1>
+        <h1> كود لتحليل البيانات وتحويلها إلى صور</h1>
+        <input type="file" id="fileInput" accept=".xlsx, .xls">
+        <div id="buttons" class="buttons"></div>
+        <div class="chart-container">
+            <canvas id="chartCanvas" width="1000" height="1000"></canvas>
+        </div>
+        <button id="save-btn" class="button">حفظ الصورة بامتداد JPG</button>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let workbook, worksheet, chart;
+
+        document.getElementById('fileInput').addEventListener('change', handleFile);
+
+        function handleFile(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const data = new Uint8Array(e.target.result);
+                workbook = XLSX.read(data, { type: 'array' });
+                worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                createButtons();
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function createButtons() {
+            const headers = XLSX.utils.sheet_to_json(worksheet, { header: 1 })[0];
+            const buttonsContainer = document.getElementById('buttons');
+            buttonsContainer.innerHTML = '';
+            headers.forEach(header => {
+                const buttonGroup = document.createElement('div');
+                buttonGroup.innerHTML = `
+                    <div>${header}</div>
+                    <input type="checkbox" name="xAxis" value="${header}"> محور X
+                    <input type="checkbox" name="yAxis" value="${header}"> محور Y
+                `;
+                buttonsContainer.appendChild(buttonGroup);
+            });
+        }
+
+        document.getElementById('buttons').addEventListener('change', drawChart);
+
+        function drawChart() {
+            if (chart) {
+                chart.destroy();
+            }
+
+            const xAxisHeaders = Array.from(document.querySelectorAll('input[name="xAxis"]:checked')).map(input => input.value);
+            const yAxisHeaders = Array.from(document.querySelectorAll('input[name="yAxis"]:checked')).map(input => input.value);
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+            const datasets = [];
+            yAxisHeaders.forEach((yAxis, yIndex) => {
+                const yData = jsonData.map(row => row[yAxis]);
+                datasets.push({
+                    label: `${yAxis} مقابل ${xAxisHeaders.join(', ')}`,
+                    data: yData,
+                    borderColor: yIndex % 2 === 0 ? 'rgba(0, 0, 255, 1)' : 'rgba(255, 0, 0, 1)', // اللون الأزرق أو الأحمر
+                    backgroundColor: yIndex % 2 === 0 ? 'rgba(0, 0, 255, 0.2)' : 'rgba(255, 0, 0, 0.2)', // خلفية شفافة باللون الأزرق أو الأحمر
+                    borderWidth: 2,
+                    fill: false
+                });
+            });
+
+            const xData = jsonData.map((row, index) => index);
+
+            const ctx = document.getElementById('chartCanvas').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: xData,
+                    datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: `المحور الأفقي (X): ${xAxisHeaders.join(', ')}`
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: `المحور الرأسي (Y): ${yAxisHeaders.join(', ')}`
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        document.getElementById('save-btn').addEventListener('click', saveChart);
+
+        function saveChart() {
+            const canvas = document.getElementById('chartCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // تحويل خلفية اللوحة إلى اللون الأبيض
+            ctx.globalCompositeOperation = 'destination-over';
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/jpeg');
+            link.download = 'chart.jpg';
+            link.click();
+        }
+    </script>
+</body>
+</html>
